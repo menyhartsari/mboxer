@@ -49,8 +49,8 @@ def m_write(hlav_zoz,fu):
 	try:
 		dlzka=int(hlav_zoz["Content-length"])
 		obsah=fu.read(dlzka)
-		nazov = hashlib.md5(obsah.encode()).hexdigest()
-		with open(f'{hlav_zoz["Mailbox"]}/{nazov}',"w") as fr:
+		nazov = hashlib.md5(obsah).hexdigest()
+		with open(f'{hlav_zoz["Mailbox"]}/{nazov}',"wb") as fr:
 			fr.write(obsah)
 	except FileNotFoundError:
 		status_num,status_comment=(203,'No such mailbox')
@@ -69,7 +69,7 @@ def m_read(hlav_zoz):
 	odpoved_hlav=""
 	odpoved_obsah=""
 	try:
-		with open(f'{hlav_zoz["Mailbox"]}/{hlav_zoz["Message"]}') as fr:
+		with open(f'{hlav_zoz["Mailbox"]}/{hlav_zoz["Message"]}','rb') as fr:
 			odpoved_obsah=fr.read()
 			dlzka=len(odpoved_obsah)
 			odpoved_hlav=(f'Content-length: {dlzka}\n')
@@ -115,17 +115,17 @@ while True:
 	pid_chld=os.fork()
 	if pid_chld==0:
 		s.close()
-		f=connected_socket.makefile(mode='rw',encoding='utf-8')
+		f=connected_socket.makefile(mode='rwb')
 		while True:
 			hlavicky_zoz={}
 			odpoved_hlav=""
 			odpoved_obsah=""
-			method=f.readline()
+			method=f.readline().decode('utf-8')
 			method=method.strip()
-			d=f.readline()
+			d=f.readline().decode('utf-8')
 			while d != "\n":
 				hlavicka,obsah=dopln(d)
-				d=f.readline()
+				d=f.readline().decode('utf-8')
 				hlavicky_zoz[hlavicka]=obsah
 			status_num,status_comment=kontrola(hlavicky_zoz)
 			if status_num==100:
@@ -137,10 +137,13 @@ while True:
 					status_num,status_comment,odpoved_hlav,odpoved_obsah=m_ls(hlavicky_zoz)
 				else:
 					status_num,status_comment=(204,'Unknown method')
-			f.write(f'{status_num} {status_comment}\n')
-			f.write(odpoved_hlav)
-			f.write('\n')
-			f.write(odpoved_obsah)
+			f.write(f'{status_num} {status_comment}\n'.encode('utf-8'))
+			f.write(odpoved_hlav.encode('utf-8'))
+			f.write('\n'.encode('utf-8'))
+			if type(odpoved_obsah)==bytes:
+				f.write(odpoved_obsah)
+			else:
+				f.write(odpoved_obsah.encode('utf-8'))
 			f.flush()
 			if status_num==204:
 				print(f'{address} uzavrel spojenie')
